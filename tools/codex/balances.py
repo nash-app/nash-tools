@@ -119,10 +119,10 @@ def format_error_message(error_type: str, details: str) -> str:
 
 def tool_function() -> str:
     try:
-        mnemonic = os.getenv("MNEMONIC")
+        MNEMONIC = os.getenv("MNEMONIC")
         # Generate Solana address from mnemonic
         solana_keypair = Keypair.from_seed_and_derivation_path(
-            Bip39SeedGenerator(mnemonic).Generate(), "m/44'/501'/0'/0'"
+            Bip39SeedGenerator(MNEMONIC).Generate(), "m/44'/501'/0'/0'"
         )
         wallet_address = str(solana_keypair.pubkey())
 

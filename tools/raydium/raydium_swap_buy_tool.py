@@ -164,15 +164,15 @@ def process_transaction(transaction_data: dict, solana_keypair: Keypair) -> str:
 def send_notification(message: str) -> None:
     """Send notification through Nash API proxy"""
     try:
-        nash_api_key = os.getenv("NASH_PROJECT_API_KEY")
-        if not nash_api_key:
+        NASH_PROJECT_API_KEY = os.getenv("NASH_PROJECT_API_KEY")
+        if not NASH_PROJECT_API_KEY:
             raise RaydiumError(
                 "Environment Variable NASH_PROJECT_API_KEY not present. Did you set it in your project's secrets?"
             )
 
         response = requests.post(
             "https://api.nash.run/notifications/push",
-            headers={"X-API-KEY": nash_api_key},
+            headers={"X-API-KEY": NASH_PROJECT_API_KEY},
             json={"title": "Raydium Swap", "body": message},
         )
         response.raise_for_status()
@@ -205,15 +205,15 @@ def tool_function(token_address: str, amount: Decimal, slippage_bps: int) -> str
             return format_error_message("Validation Error", str(e))
 
         # Get keypair from mnemonic
-        mnemonic = os.getenv("MNEMONIC")
-        if not mnemonic:
+        MNEMONIC = os.getenv("MNEMONIC")
+        if not MNEMONIC:
             return format_error_message(
                 "Config Error",
                 "Environment Variable MNEMONIC not present. Did you set it in your project's secrets?",
             )
 
         solana_keypair = Keypair.from_seed_and_derivation_path(
-            Bip39SeedGenerator(mnemonic).Generate(), "m/44'/501'/0'/0'"
+            Bip39SeedGenerator(MNEMONIC).Generate(), "m/44'/501'/0'/0'"
         )
         pub_key = str(solana_keypair.pubkey())
 
