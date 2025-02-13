@@ -12,10 +12,10 @@ eval $(poetry env activate)
 
 ## Running Tools Locally
 
-Run the tool:
+To test the tool, run the file itself to use its main block.
 
 ```sh
-PYTHONPATH=$PWD python app/tools/scripts/run_tool.py
+python tools/<dirname>/<filename>.py
 ```
 
 ## Creating New Tools
