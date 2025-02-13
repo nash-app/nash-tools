@@ -1,0 +1,56 @@
+[tool.poetry]
+name = "nash-tools"
+version = "0.0.1"
+description = "Nash Tools"
+authors = ["Nash Team <team@nash.run>"]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "<3.13,>=3.10"
+pydantic = "^2.6.1"
+requests = "2.32.3"
+mplfinance = "0.12.10b0"
+pandas = "2.2.3"
+crewai = "^0.95.0"
+python-dotenv = "1.0.1"
+solders = "0.23.0"
+solana = "0.36.1"
+bip-utils = "^2.9.3"
+sqlalchemy = "^2.0.37"
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.2.0"
+flake8 = "7.1.1"
+Flake8-pyproject = "^1.2.3"
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+
+[tool.flake8]
+max-line-length = 88
+exclude = [
+    ".git",
+    "__pycache__",
+    ".venv",
+    "venv",
+    "*.pyc",
+    ".tox",
+    ".eggs",
+    "*.egg",
+    "build",
+    "dist",
+    "**/site-packages/*"
+]
+per-file-ignores = "__init__.py:F401"
+extend-ignore = [
+    "E203",
+    "W503",
+    "E501",
+    "W505"
+]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api" 

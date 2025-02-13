@@ -1,0 +1,49 @@
+# Python virtual environments
+venv/
+env/
+.env/
+.venv/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Test coverage
+.coverage
+htmlcov/
+
+# Database files
+*.db
+*.sqlite3
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# IDE specific
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# Local development settings
+local_settings.py
+
+# Dependencies
+node_modules/
+
+# Temporary files
+*.swp
+*.swo
+*~
+
+# Documentation builds
+docs/_build/ 

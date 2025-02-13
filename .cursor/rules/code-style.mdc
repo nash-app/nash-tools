@@ -1,0 +1,9 @@
+---
+description: Code style guidelines
+globs: *.py
+---
+# Code Style Guidelines
+
+1. Never include trailing whitespace at the end of lines
+2. Empty lines should not have any indentation
+3. No spaces should appear after the last non-whitespace character on any line

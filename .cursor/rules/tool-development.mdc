@@ -1,0 +1,262 @@
+---
+description: Use this when creating or editing Nash tools
+globs: *.py
+---
+
+# Nash tool guidelines
+
+For tool functions:
+
+1. Tool function parameter handling:
+   - tool_function should take explicit parameters rather than **kwargs
+   - Environment variables should be accessed directly in tool_function using os.getenv()
+   - Return early with formatted error messages if required env vars are missing
+
+2. Parameter class naming and validation:
+   - ToolParameters: Pydantic model for validating tool-specific parameters
+   - No inheritance hierarchy needed for simple tools
+   - Use field_validator decorators for complex validation rules
+
+3. API calls:
+   - Use Nash API proxy for supported third-party services
+   - Currently supported services via proxy:
+     - Codex API: https://api.nash.run/proxy/codex
+     - Neynar API: https://api.nash.run/proxy/neynar/v2/...
+   - For Nash-proxied services:
+     - Use NASH_PROJECT_API_KEY in X-API-KEY header
+     - Example usage:
+```python
+def fetch_data() -> dict:
+    """Fetch data through Nash API proxy"""
+    response = requests.post(
+        "https://api.nash.run/proxy/codex",  # or /proxy/neynar/v2/...
+        headers={
+            "X-API-KEY": os.getenv("NASH_PROJECT_API_KEY"),
+            "Content-Type": "application/json",
+        },
+        json={"query": "..."}  # for GraphQL
+    )
+    response.raise_for_status()
+    return response.json()
+```
+   - For other third-party services:
+     - Access APIs directly using their SDK/endpoints
+     - Store API keys in project secrets
+     - Access keys via environment variables in tool
+     - Example usage:
+```python
+def fetch_external_data() -> dict:
+    """Fetch data from external API"""
+    api_key = os.getenv("EXTERNAL_SERVICE_API_KEY")
+    if not api_key:
+        raise ToolError(
+            "Environment Variable EXTERNAL_SERVICE_API_KEY not present. Did you set it in your project's secrets?"
+        )
+    
+    response = requests.get(
+        "https://api.external-service.com/endpoint",
+        headers={"Authorization": f"Bearer {api_key}"},
+    )
+    response.raise_for_status()
+    return response.json()
+```
+
+4. Error handling:
+   - Define custom exception classes for tool-specific errors
+   - Helper functions should raise exceptions rather than return error values
+   - tool_function catches all exceptions and returns formatted error messages
+   - Use format_error_message helper for consistent error formatting
+
+5. Helper functions:
+   - Should be ordered in the file to match their usage order in tool_function
+   - Take explicit parameters rather than accessing global state
+   - Return typed values rather than error strings
+   - Include clear docstrings describing purpose and return values
+
+6. Main block structure:
+```python
+if __name__ == "__main__":
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    output = tool_function(
+        param1="example",  # Example parameters with comments
+        param2="test",
+    )
+    print(output)
+```
+
+7. File organization:
+   - Imports at top (standard library first, then third party)
+   - DESCRIPTION constant defining tool purpose
+   - ToolParameters and custom exception classes
+   - Helper functions in order of use
+   - tool_function implementation
+   - Main block at bottom
+
+8. Return values:
+   - Return strings that can be directly used by the LLM
+   - Use CSV format for structured data
+   - Return clear error messages for failure cases
+   - Include "No data" type messages when appropriate
+
+9. Environment variables:
+   - Access directly in tool_function using os.getenv()
+   - Check for required variables early
+   - Use SCREAMING_SNAKE_CASE for env var names
+   - Document required env vars in docstring
+
+Example tool structure:
+```python
+import os
+from pydantic import BaseModel, Field
+
+DESCRIPTION = "Tool purpose and usage description"
+
+class ToolParameters(BaseModel):
+    param1: str = Field(..., description="Parameter description")
+    
+    @field_validator("param1")
+    def validate_param1(cls, v):
+        if not v.startswith("valid_"):
+            raise ValueError("param1 must start with 'valid_'")
+        return v
+
+class ToolError(Exception):
+    """Custom exception for tool-specific errors"""
+    pass
+
+def helper_function(param: str) -> dict:
+    """Helper function docstring"""
+    try:
+        # Implementation
+        return result
+    except Exception as e:
+        raise ToolError(f"Helper failed: {str(e)}")
+
+def tool_function(param1: str) -> str:
+    """Main tool function with explicit parameters"""
+    try:
+        # Validate env vars
+        api_key = os.getenv("NASH_PROJECT_API_KEY")
+        if not api_key:
+            return format_error_message(
+                "Config Error",
+                "Environment Variable NASH_PROJECT_API_KEY not present. Did you set it in your project's secrets?"
+            )
+
+        # Validate parameters
+        try:
+            params = ToolParameters(param1=param1)
+        except ValueError as e:
+            return format_error_message("Validation Error", str(e))
+
+        # Core logic
+        result = helper_function(params.param1)
+        return format_result(result)
+
+    except Exception as e:
+        return format_error_message("Unexpected Error", str(e))
+
+if __name__ == "__main__":
+    from dotenv import load_dotenv
+    load_dotenv()
+    
+    output = tool_function(param1="example")
+    print(output)
+```
+
+10. Wallet functionality should be implemented directly in tools using simple mnemonic derivation.
+    There are two main use cases:
+
+    A. Read-only wallet access (getting addresses):
+    ```python
+    # For Solana - Read Only
+    from bip_utils import Bip39SeedGenerator
+    from solders.keypair import Keypair
+
+    def get_solana_address(mnemonic: str) -> str:
+        """Get Solana address from mnemonic"""
+        solana_keypair = Keypair.from_seed_and_derivation_path(
+            Bip39SeedGenerator(mnemonic).Generate(),
+            "m/44'/501'/0'/0'"
+        )
+        return str(solana_keypair.pubkey())
+
+    # For Ethereum - Read Only
+    from bip_utils import Bip39SeedGenerator, Bip44, Bip44Coins, Bip44Changes
+
+    def get_ethereum_address(mnemonic: str) -> str:
+        """Get Ethereum address from mnemonic"""
+        seed_bytes = Bip39SeedGenerator(mnemonic).Generate()
+        bip44_mst = Bip44.FromSeed(seed_bytes, Bip44Coins.ETHEREUM)
+        account = (
+            bip44_mst.Purpose()
+            .Coin()
+            .Account(0)
+            .Change(Bip44Changes.CHAIN_EXT)
+            .AddressIndex(0)
+        )
+        return account.PublicKey().ToAddress()
+    ```
+
+    B. Transaction signing (requires full keypair):
+    ```python
+    # For Solana - Transaction Signing
+    from bip_utils import Bip39SeedGenerator
+    from solders.keypair import Keypair
+    from solders.transaction import VersionedTransaction
+
+    def get_solana_signer(mnemonic: str) -> Keypair:
+        """Get Solana keypair for signing"""
+        return Keypair.from_seed_and_derivation_path(
+            Bip39SeedGenerator(mnemonic).Generate(),
+            "m/44'/501'/0'/0'"
+        )
+
+    def sign_solana_transaction(keypair: Keypair, message: Any) -> VersionedTransaction:
+        """Sign a Solana transaction"""
+        return VersionedTransaction(message, [keypair])
+    ```
+
+Note: When implementing wallet functionality:
+- Only import the minimum required dependencies for your use case
+- Use read-only functions when you only need addresses
+- Keep signing functionality separate and only import when needed
+- Document clearly whether the tool needs read-only access or signing capability
+
+11. Transaction recording should be implemented using the Nash API. Example implementation:
+
+```python
+def record_transaction(
+    hash: str,
+    chain_id: str,
+    description: str,
+    crew_config_id: str,
+    run_id: str,
+    nash_api_key: str,
+) -> None:
+    """Helper function to save transactions via Nash API"""
+    try:
+        response = requests.post(
+            "https://api.nash.run/transactions",
+            headers={"X-API-KEY": nash_api_key},
+            json={
+                "transaction_hash": hash,
+                "chain_id": chain_id,
+                "crew_config_id": crew_config_id,
+                "run_id": run_id,
+                "sentence": description,
+            },
+        )
+        response.raise_for_status()
+    except requests.RequestException as e:
+        raise Exception(f"Failed to save transaction: {str(e)}")
+```
+
+Note: When recording transactions:
+- Always include all required fields (hash, chain_id, description, crew_config_id, run_id)
+- Use the nash_api_key from the tool's environment config
+- Handle request exceptions appropriately
+- Consider this a peripheral operation that should not affect the core tool success/failure status
