@@ -20,6 +20,6 @@ python tools/<dirname>/<filename>.py
 
 ## Creating New Tools
 
-See [`template.py`](./template.py) for a reference implementation.
+See [`template.py`](./tools/template.py) for a reference implementation.
 
 Follow the best practices defined in [`.cursor/rules`](./.cursor/rules).
