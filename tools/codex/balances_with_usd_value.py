@@ -190,15 +190,15 @@ def format_error_message(error_type: str, details: str) -> str:
 
 def tool_function() -> str:
     try:
-        mnemonic = os.getenv("MNEMONIC")
-        if not mnemonic:
+        MNEMONIC = os.getenv("MNEMONIC")
+        if not MNEMONIC:
             return format_error_message(
                 "Parameter Error", "MNEMONIC environment variable not set"
             )
 
         # Generate Solana address from mnemonic
         solana_keypair = Keypair.from_seed_and_derivation_path(
-            Bip39SeedGenerator(mnemonic).Generate(), "m/44'/501'/0'/0'"
+            Bip39SeedGenerator(MNEMONIC).Generate(), "m/44'/501'/0'/0'"
         )
         wallet_address = str(solana_keypair.pubkey())
 

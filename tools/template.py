@@ -56,8 +56,8 @@ def tool_function(message: str) -> str:
     """Template tool that echoes back a message."""
     try:
         # Validate env vars
-        api_key = os.getenv("NASH_PROJECT_API_KEY")
-        if not api_key:
+        NASH_PROJECT_API_KEY = os.getenv("NASH_PROJECT_API_KEY")
+        if not NASH_PROJECT_API_KEY:
             return format_error_message("Config Error", "NASH_PROJECT_API_KEY not set")
 
         # Validate parameters

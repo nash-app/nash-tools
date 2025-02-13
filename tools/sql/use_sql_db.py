@@ -74,16 +74,16 @@ def tool_function(sql_query: str) -> str:
     """
     try:
         # Validate environment variables
-        database_url = os.getenv("DATABASE_URL")
-        if not database_url:
+        DATABASE_URL = os.getenv("DATABASE_URL")
+        if not DATABASE_URL:
             return format_error_message(
                 "Config Error",
                 "Environment Variable DATABASE_URL not present. Did you set it in your project's secrets?",
             )
 
         # Fix for Heroku's postgres:// URLs
-        if database_url.startswith("postgres://"):
-            database_url = database_url.replace("postgres://", "postgresql://", 1)
+        if DATABASE_URL.startswith("postgres://"):
+            DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
         # Validate parameters
         try:
@@ -92,7 +92,7 @@ def tool_function(sql_query: str) -> str:
             return format_error_message("Validation Error", str(e))
 
         # Core logic
-        engine = create_engine(database_url)
+        engine = create_engine(DATABASE_URL)
         results = execute_query(engine, params.sql_query)
 
         # Format results for output

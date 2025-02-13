@@ -47,15 +47,15 @@ def fetch_data() -> dict:
 ```python
 def fetch_external_data() -> dict:
     """Fetch data from external API"""
-    api_key = os.getenv("EXTERNAL_SERVICE_API_KEY")
-    if not api_key:
+    EXTERNAL_SERVICE_API_KEY = os.getenv("EXTERNAL_SERVICE_API_KEY")
+    if not EXTERNAL_SERVICE_API_KEY:
         raise ToolError(
             "Environment Variable EXTERNAL_SERVICE_API_KEY not present. Did you set it in your project's secrets?"
         )
     
     response = requests.get(
         "https://api.external-service.com/endpoint",
-        headers={"Authorization": f"Bearer {api_key}"},
+        headers={"Authorization": f"Bearer {EXTERNAL_SERVICE_API_KEY}"},
     )
     response.raise_for_status()
     return response.json()
@@ -139,8 +139,8 @@ def tool_function(param1: str) -> str:
     """Main tool function with explicit parameters"""
     try:
         # Validate env vars
-        api_key = os.getenv("NASH_PROJECT_API_KEY")
-        if not api_key:
+        NASH_PROJECT_API_KEY = os.getenv("NASH_PROJECT_API_KEY")
+        if not NASH_PROJECT_API_KEY:
             return format_error_message(
                 "Config Error",
                 "Environment Variable NASH_PROJECT_API_KEY not present. Did you set it in your project's secrets?"
@@ -226,37 +226,4 @@ Note: When implementing wallet functionality:
 - Keep signing functionality separate and only import when needed
 - Document clearly whether the tool needs read-only access or signing capability
 
-11. Transaction recording should be implemented using the Nash API. Example implementation:
-
-```python
-def record_transaction(
-    hash: str,
-    chain_id: str,
-    description: str,
-    crew_config_id: str,
-    run_id: str,
-    nash_api_key: str,
-) -> None:
-    """Helper function to save transactions via Nash API"""
-    try:
-        response = requests.post(
-            "https://api.nash.run/transactions",
-            headers={"X-API-KEY": nash_api_key},
-            json={
-                "transaction_hash": hash,
-                "chain_id": chain_id,
-                "crew_config_id": crew_config_id,
-                "run_id": run_id,
-                "sentence": description,
-            },
-        )
-        response.raise_for_status()
-    except requests.RequestException as e:
-        raise Exception(f"Failed to save transaction: {str(e)}")
-```
-
-Note: When recording transactions:
-- Always include all required fields (hash, chain_id, description, crew_config_id, run_id)
-- Use the nash_api_key from the tool's environment config
-- Handle request exceptions appropriately
-- Consider this a peripheral operation that should not affect the core tool success/failure status
+11. As a convention, when using an env var as a variable in the tool, preserve the same casing in the variable name, like this `VARIABLE = os.getenv("VARIABLE")`
