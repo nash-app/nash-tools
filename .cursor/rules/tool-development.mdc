@@ -7,26 +7,28 @@ globs: *.py
 
 For tool functions:
 
-1, Tool ouput
-   - The output of a tool must always be a string
-   - Try to make the string format as human-readable as possible. Favor CSV over JSON when possible
+1. Return values:
+   - Return strings that can be directly used by the LLM
+   - Use CSV format for structured data over formats like JSON
+   - Return clear error messages for failure cases
+   - Include "No data" type messages when appropriate
 
 2. Tool capabilities
    - Tool functions should only get information from external sources like APIs/RPCs, write information to external sources like APIs/RPCs, or perform computations.
    - Tool functions should try to never write files to the filesystem. If it must, use temp directories and clean up files after creation.
    - Tool functions should never perform system introspection like look at the filesystem or processes running on the system.
 
-1. Tool function parameter handling:
+3. Tool function parameter handling:
    - tool_function should take explicit parameters rather than **kwargs
    - Environment variables should be accessed directly in tool_function using os.getenv()
    - Return early with formatted error messages if required env vars are missing
 
-2. Parameter class naming and validation:
+4. Parameter class naming and validation:
    - ToolParameters: Pydantic model for validating tool-specific parameters
    - No inheritance hierarchy needed for simple tools
    - Use field_validator decorators for complex validation rules
 
-3. API calls:
+5. API calls:
    - Use Nash API proxy for supported third-party services
    - Currently supported services via proxy:
      - Codex API: https://api.nash.run/proxy/codex
@@ -70,19 +72,19 @@ def fetch_external_data() -> dict:
     return response.json()
 ```
 
-4. Error handling:
+6. Error handling:
    - Define custom exception classes for tool-specific errors
    - Helper functions should raise exceptions rather than return error values
    - tool_function catches all exceptions and returns formatted error messages
    - Use format_error_message helper for consistent error formatting
 
-5. Helper functions:
+7. Helper functions:
    - Should be ordered in the file to match their usage order in tool_function
    - Take explicit parameters rather than accessing global state
    - Return typed values rather than error strings
    - Include clear docstrings describing purpose and return values
 
-6. Main block structure:
+8. Main block structure:
 ```python
 if __name__ == "__main__":
     from dotenv import load_dotenv
@@ -96,7 +98,7 @@ if __name__ == "__main__":
     print(output)
 ```
 
-7. File organization:
+9. File organization:
    - Imports at top (standard library first, then third party)
    - DESCRIPTION constant defining tool purpose
    - ToolParameters and custom exception classes
@@ -104,13 +106,7 @@ if __name__ == "__main__":
    - tool_function implementation
    - Main block at bottom
 
-8. Return values:
-   - Return strings that can be directly used by the LLM
-   - Use CSV format for structured data
-   - Return clear error messages for failure cases
-   - Include "No data" type messages when appropriate
-
-9. Environment variables:
+10. Environment variables:
    - Access directly in tool_function using os.getenv()
    - Check for required variables early
    - Use SCREAMING_SNAKE_CASE for env var names
@@ -176,7 +172,7 @@ if __name__ == "__main__":
     print(output)
 ```
 
-10. Wallet functionality should be implemented directly in tools using simple mnemonic derivation.
+11. Wallet functionality should be implemented directly in tools using simple mnemonic derivation.
     There are two main use cases:
 
     A. Read-only wallet access (getting addresses):
@@ -235,7 +231,7 @@ Note: When implementing wallet functionality:
 - Keep signing functionality separate and only import when needed
 - Document clearly whether the tool needs read-only access or signing capability
 
-11. As a convention, when using an env var as a variable in the tool, preserve the same casing in the variable name, like this `VARIABLE = os.getenv("VARIABLE")`
+12. As a convention, when using an env var as a variable in the tool, preserve the same casing in the variable name, like this `VARIABLE = os.getenv("VARIABLE")`
 
 Here's an example of a fully working tool:
 
