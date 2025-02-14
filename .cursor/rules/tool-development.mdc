@@ -3,21 +3,32 @@ description: Use this when creating or editing Nash tools
 globs: *.py
 ---
 
-# Nash tool guidelines
+## Nash tool guidelines
 
 For tool functions:
 
-1. Tool function parameter handling:
+1. Return values:
+   - Return strings that can be directly used by the LLM
+   - Use CSV format for structured data over formats like JSON
+   - Return clear error messages for failure cases
+   - Include "No data" type messages when appropriate
+
+2. Tool capabilities
+   - Tool functions should only get information from external sources like APIs/RPCs, write information to external sources like APIs/RPCs, or perform computations.
+   - Tool functions should try to never write files to the filesystem. If it must, use temp directories and clean up files after creation.
+   - Tool functions should never perform system introspection like look at the filesystem or processes running on the system.
+
+3. Tool function parameter handling:
    - tool_function should take explicit parameters rather than **kwargs
    - Environment variables should be accessed directly in tool_function using os.getenv()
    - Return early with formatted error messages if required env vars are missing
 
-2. Parameter class naming and validation:
+4. Parameter class naming and validation:
    - ToolParameters: Pydantic model for validating tool-specific parameters
    - No inheritance hierarchy needed for simple tools
    - Use field_validator decorators for complex validation rules
 
-3. API calls:
+5. API calls:
    - Use Nash API proxy for supported third-party services
    - Currently supported services via proxy:
      - Codex API: https://api.nash.run/proxy/codex
@@ -61,19 +72,19 @@ def fetch_external_data() -> dict:
     return response.json()
 ```
 
-4. Error handling:
+6. Error handling:
    - Define custom exception classes for tool-specific errors
    - Helper functions should raise exceptions rather than return error values
    - tool_function catches all exceptions and returns formatted error messages
    - Use format_error_message helper for consistent error formatting
 
-5. Helper functions:
+7. Helper functions:
    - Should be ordered in the file to match their usage order in tool_function
    - Take explicit parameters rather than accessing global state
    - Return typed values rather than error strings
    - Include clear docstrings describing purpose and return values
 
-6. Main block structure:
+8. Main block structure:
 ```python
 if __name__ == "__main__":
     from dotenv import load_dotenv
@@ -87,7 +98,7 @@ if __name__ == "__main__":
     print(output)
 ```
 
-7. File organization:
+9. File organization:
    - Imports at top (standard library first, then third party)
    - DESCRIPTION constant defining tool purpose
    - ToolParameters and custom exception classes
@@ -95,13 +106,7 @@ if __name__ == "__main__":
    - tool_function implementation
    - Main block at bottom
 
-8. Return values:
-   - Return strings that can be directly used by the LLM
-   - Use CSV format for structured data
-   - Return clear error messages for failure cases
-   - Include "No data" type messages when appropriate
-
-9. Environment variables:
+10. Environment variables:
    - Access directly in tool_function using os.getenv()
    - Check for required variables early
    - Use SCREAMING_SNAKE_CASE for env var names
@@ -167,7 +172,7 @@ if __name__ == "__main__":
     print(output)
 ```
 
-10. Wallet functionality should be implemented directly in tools using simple mnemonic derivation.
+11. Wallet functionality should be implemented directly in tools using simple mnemonic derivation.
     There are two main use cases:
 
     A. Read-only wallet access (getting addresses):
@@ -226,4 +231,157 @@ Note: When implementing wallet functionality:
 - Keep signing functionality separate and only import when needed
 - Document clearly whether the tool needs read-only access or signing capability
 
-11. As a convention, when using an env var as a variable in the tool, preserve the same casing in the variable name, like this `VARIABLE = os.getenv("VARIABLE")`
+12. As a convention, when using an env var as a variable in the tool, preserve the same casing in the variable name, like this `VARIABLE = os.getenv("VARIABLE")`
+
+Here's an example of a fully working tool:
+
+```python
+import csv
+import io
+import os
+from bip_utils import Bip39SeedGenerator
+from solders.keypair import Keypair
+
+import requests
+from pydantic import BaseModel
+
+
+DESCRIPTION = (
+    "Returns the balances of a given wallet on the Solana blockchain in CSV format. If no wallet is provided, it will return the balances of the wallet associated with the agent. "
+    "If there are no balances, it will return 'No balances for this address' which you can assume means the wallet has no balances for any tokens and you can move on."
+)
+
+
+class ToolParameters(BaseModel):
+    """No parameters needed since wallet is handled via kwargs"""
+
+    pass
+
+
+class BalancesError(Exception):
+    """Custom exception for balance fetching errors"""
+
+    pass
+
+
+def fetch_balances(wallet_address: str) -> list:
+    """Fetch balances from Defined.fi API"""
+    solana_chain_id = "1399811149"
+    balances = []
+    cursor = "null"
+
+    for _ in range(10):
+        headers = {
+            "Content-Type": "application/json",
+            "X-API-KEY": os.getenv("NASH_PROJECT_API_KEY"),
+        }
+        data = {
+            "query": f"""
+                query {{
+                balances(input: {{ walletId: "{wallet_address}:{solana_chain_id}", cursor: {cursor} }}) {{
+                    cursor
+                    items {{
+                        walletId
+                        tokenId
+                        balance
+                        shiftedBalance
+                    }}
+                }}
+            }}
+            """
+        }
+
+        try:
+            response = requests.post(
+                "https://api.nash.run/proxy/codex",
+                headers=headers,
+                json=data,
+            )
+            response.raise_for_status()
+
+            data = response.json()
+            if "errors" in data:
+                raise BalancesError(f"GraphQL Error: {data['errors']}")
+
+            items = data["data"]["balances"]["items"]
+            if not items:
+                break
+
+            balances.extend(items)
+            cursor = data["data"]["balances"]["cursor"]
+            if not cursor:
+                break
+
+            cursor = f'"{cursor}"'
+
+        except requests.RequestException as e:
+            raise BalancesError(f"API request failed: {str(e)}")
+        except (KeyError, TypeError) as e:
+            raise BalancesError(f"Invalid API response format: {str(e)}")
+
+    return balances
+
+
+def format_balances_csv(balances: list) -> str:
+    """Format balances into CSV string"""
+    if not balances:
+        return "No balances for this address"
+
+    fieldnames = balances[0].keys()
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    writer.writeheader()
+
+    for balance in balances:
+        cleaned_balance = {
+            key: (
+                ""
+                if value is None
+                else (
+                    value.replace(":1399811149", "")
+                    if isinstance(value, str)
+                    else value
+                )
+            )
+            for key, value in balance.items()
+        }
+        writer.writerow(cleaned_balance)
+
+    return output.getvalue()
+
+
+def format_error_message(error_type: str, details: str) -> str:
+    """Format error messages consistently"""
+    return f"balances_tool error: {error_type} - {details}"
+
+
+def tool_function() -> str:
+    try:
+        MNEMONIC = os.getenv("MNEMONIC")
+        # Generate Solana address from mnemonic
+        solana_keypair = Keypair.from_seed_and_derivation_path(
+            Bip39SeedGenerator(MNEMONIC).Generate(), "m/44'/501'/0'/0'"
+        )
+        wallet_address = str(solana_keypair.pubkey())
+
+        # Fetch balances
+        try:
+            balances = fetch_balances(wallet_address)
+        except BalancesError as e:
+            return format_error_message("API Error", str(e))
+
+        # Format and return results
+        return format_balances_csv(balances)
+
+    except Exception as e:
+        return format_error_message("Unexpected Error", str(e))
+
+
+if __name__ == "__main__":
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    output = tool_function()
+    print(output)
+```
